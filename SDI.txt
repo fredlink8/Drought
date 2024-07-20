@@ -1,0 +1,841 @@
+//SDI                                 Stream Flow Drought Index
+// Study area
+var aoi = ee.FeatureCollection("users/fredlink9/Africa");
+// Year used for the Land Use
+var year = 2020
+
+Map.setCenter(26.2, 0.5, 7);
+// Map.centerObject(aoi)
+var soil_class = ee.Image("OpenLandMap/SOL/SOL_TEXTURE-CLASS_USDA-TT_M/v02")
+              .select('b0').clip(aoi)
+              .rename('soil');
+
+// Converting soil textute into soil group
+// A == 1, B == 2,  C == 3, D == 4
+var soil_grp = soil_class.expression(
+    "(b('soil') > 10) ? 4" +
+      ": (b('soil') > 4) ? 3" +
+        ": (b('soil') > 1) ? 2" +
+           ": (b('soil') > 0) ? 1" +
+             ": 0"
+).rename('soil');
+var modis = ee.ImageCollection('MODIS/006/MCD12Q1')
+            .filter(ee.Filter.calendarRange(year,year,'year'))
+var lulc = modis.select('LC_Type1').first().clip(aoi)
+            .rename('lulc');
+ var lulc_soil = lulc.addBands(soil_grp) 
+
+// Create CN map using an expression
+var CN_whole = lulc_soil.expression(
+    "(b('soil') == 1) and(b('lulc')==1) ? 35" +
+     ": (b('soil') == 1) and(b('lulc')==2) ? 25" +
+        ": (b('soil') == 1) and(b('lulc')==3) ? 45" +
+        ": (b('soil') == 1) and(b('lulc')==4) ? 39" +
+        ": (b('soil') == 1) and(b('lulc')==5) ? 45" +
+        ": (b('soil') == 1) and(b('lulc')==6) ? 49" +
+        ": (b('soil') == 1) and(b('lulc')==7) ? 68" +
+        ": (b('soil') == 1) and(b('lulc')==8) ? 36" +
+        ": (b('soil') == 1) and(b('lulc')==9) ? 45" +
+        ": (b('soil') == 1) and(b('lulc')==10) ? 30" +
+        ": (b('soil') == 1) and(b('lulc')==11) ? 95" +
+        ": (b('soil') == 1) and(b('lulc')==12) ? 67" +
+        ": (b('soil') == 1) and(b('lulc')==13) ? 72" +
+        ": (b('soil') == 1) and(b('lulc')==14) ? 63" +
+        ": (b('soil') == 1) and(b('lulc')==15) ? 100" +
+        ": (b('soil') == 1) and(b('lulc')==16) ? 74" +
+        ": (b('soil') == 1) and(b('lulc')==17) ? 100" +
+          ": (b('soil') == 2) and(b('lulc')==1) ? 50" +
+          ": (b('soil') == 2) and(b('lulc')==2) ? 55" +
+          ": (b('soil') == 2) and(b('lulc')==3) ? 66" +
+          ": (b('soil') == 2) and(b('lulc')==4) ? 61" +
+          ": (b('soil') == 2) and(b('lulc')==5) ? 66" +
+          ": (b('soil') == 2) and(b('lulc')==6) ? 69" +
+          ": (b('soil') == 2) and(b('lulc')==7) ? 79" +
+          ": (b('soil') == 2) and(b('lulc')==8) ? 60" +
+          ": (b('soil') == 2) and(b('lulc')==9) ? 66" +
+          ": (b('soil') == 2) and(b('lulc')==10) ? 58" +
+          ": (b('soil') == 2) and(b('lulc')==11) ? 95" +
+          ": (b('soil') == 2) and(b('lulc')==12) ? 78" +
+          ": (b('soil') == 2) and(b('lulc')==13) ? 82" +
+          ": (b('soil') == 2) and(b('lulc')==14) ? 75" +
+          ": (b('soil') == 2) and(b('lulc')==15) ? 100" +
+          ": (b('soil') == 2) and(b('lulc')==16) ? 84" +
+          ": (b('soil') == 2) and(b('lulc')==17) ? 100" +
+            ": (b('soil') == 3) and(b('lulc')==1) ? 73" +
+              ": (b('soil') == 3) and(b('lulc')==2) ? 70" +
+              ": (b('soil') == 3) and(b('lulc')==3) ? 77" +
+              ": (b('soil') == 3) and(b('lulc')==4) ? 74" +
+              ": (b('soil') == 3) and(b('lulc')==5) ? 77" +
+              ": (b('soil') == 3) and(b('lulc')==6) ? 79" +
+              ": (b('soil') == 3) and(b('lulc')==7) ? 86" +
+              ": (b('soil') == 3) and(b('lulc')==8) ? 73" +
+              ": (b('soil') == 3) and(b('lulc')==9) ? 77" +
+              ": (b('soil') == 3) and(b('lulc')==10) ? 71" +
+              ": (b('soil') == 3) and(b('lulc')==11) ? 95" +
+              ": (b('soil') == 3) and(b('lulc')==12) ? 85" +
+              ": (b('soil') == 3) and(b('lulc')==13) ? 87" +
+              ": (b('soil') == 3) and(b('lulc')==14) ? 83" +
+              ": (b('soil') == 3) and(b('lulc')==15) ? 100" +
+              ": (b('soil') == 3) and(b('lulc')==16) ? 90" +
+              ": (b('soil') == 3) and(b('lulc')==17) ? 100" +
+              "  : (b('soil') == 4) and(b('lulc')==1) ? 79" +
+                ": (b('soil') == 4) and(b('lulc')==2) ? 77" +
+                ": (b('soil') == 4) and(b('lulc')==3) ? 83" +
+                ": (b('soil') == 4) and(b('lulc')==4) ? 80" +
+                ": (b('soil') == 4) and(b('lulc')==5) ? 83" +
+                ": (b('soil') == 4) and(b('lulc')==6) ? 89" +
+                ": (b('soil') == 4) and(b('lulc')==7) ? 89" +
+                ": (b('soil') == 4) and(b('lulc')==8) ? 79" +
+                ": (b('soil') == 4) and(b('lulc')==9) ? 83" +
+                ": (b('soil') == 4) and(b('lulc')==10) ? 78" +
+                ": (b('soil') == 4) and(b('lulc')==11) ? 95" +
+                ": (b('soil') == 4) and(b('lulc')==12) ? 89" +
+                ": (b('soil') == 4) and(b('lulc')==13) ? 89" +
+                ": (b('soil') == 4) and(b('lulc')==14) ? 87" +
+                ": (b('soil') == 4) and(b('lulc')==15) ? 100" +
+                ": (b('soil') == 4) and(b('lulc')==16) ? 92" +
+                ": (b('soil') == 4) and(b('lulc')==17) ? 100" +
+                     ": (b('soil') == 0) ? 100" +
+                    ": 0"
+);
+var CN2 = CN_whole.clip(aoi).rename('CN2'); 
+
+var CN1 = CN2.expression(
+    'CN2 /(2.281-(0.0128*CN2))',{
+      'CN2': CN2.select('CN2')
+    }).rename('CN1'); 
+    
+var CN3 = CN2.expression(
+    'CN2 /(0.427+(0.00573*CN2))',{
+      'CN2': CN2.select('CN2')
+    }).rename('CN3');  
+  
+
+var S_image1 = CN1.expression(
+    '(25400/CN1)-254', {
+      'CN1': CN1.select('CN1')
+}).rename('S_value1');
+
+var S_image2 = CN2.expression(
+    '(25400/CN2)-254', {
+      'CN2': CN2.select('CN2')
+}).rename('S_value2');
+
+var S_image3 = CN3.expression(
+    '(25400/CN3)-254', {
+      'CN3': CN3.select('CN3')
+}).rename('S_value3');
+
+
+
+
+
+var computeRunoff = function(startDate, endDate) {
+
+  var rainfall = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
+                    .filter(ee.Filter.date(startDate, endDate));
+
+  var listOfImages = rainfall.toList(rainfall.size());
+
+  var calculated_list = listOfImages.map(function(img) {
+      var index = listOfImages.indexOf(img)
+      img = ee.Image(img);
+      var firstIndex = ee.Algorithms.If(index.lte(3), index, index.subtract(4));
+      var firstImage = ee.Image(listOfImages.get(firstIndex));
+      var secondIndex = ee.Algorithms.If(index.lte(3), index, index.subtract(3));
+      var secondImage = ee.Image(listOfImages.get(secondIndex));
+      var thirdIndex = ee.Algorithms.If(index.lte(3), index, index.subtract(2));
+      var thirdImage = ee.Image(listOfImages.get(thirdIndex));
+      var fourthIndex = ee.Algorithms.If(index.lte(3), index, index.subtract(1));
+      var fourthImage = ee.Image(listOfImages.get(fourthIndex));
+      var change = ee.Image(firstImage.add(secondImage).add(thirdImage)
+                    .add(fourthImage).add(img).copyProperties(img, ["system:time_start"]));
+      return change;
+  });
+
+  var listOfAMC = calculated_list.size();
+  var AMCcollection = ee.ImageCollection(calculated_list);
+
+  var Join = ee.Join.inner();
+  var FilterOnStartTime = ee.Filter.equals({'leftField': 'system:time_start', 
+                                            'rightField': 'system:time_start'
+                                           });
+
+  var rain_AMC = Join.apply(rainfall, AMCcollection, FilterOnStartTime);
+
+  var MergeBands = function(aRow) {
+    var anImage = ee.Image.cat(aRow.get('primary'), aRow.get('secondary'));
+    return anImage;
+  };
+
+  var merged = rain_AMC.map(MergeBands);
+  var MergedRain_AMC = ee.ImageCollection(merged);
+
+  var zeroImage = ee.Image(0);
+
+  var runoff_func = function(image) {
+
+    var AMC = image.select('precipitation_1')
+    var ppt = image.select('precipitation')
+    var AMCreplaced = S_image2.where(AMC.lte(13), S_image1);
+    var AMCreplaced2 = AMCreplaced.where(AMC.gt(28), S_image3)
+    var s_value = AMCreplaced2.select('S_value2')
+
+    var Q2 = image.expression(
+      '((ppt-(0.2*S_image))**2)/(ppt-(0.2*S_image)+S_image)', {
+        'ppt': image.select('precipitation'),
+        'S_image': AMCreplaced2.select('S_value2')
+    });
+
+    var Q3 = Q2.where(ppt.lt(s_value.multiply(0.2)), zeroImage)
+    return Q3.clip(aoi).rename('runoff')
+                  .copyProperties(image, ["system:time_start"]);
+  };
+
+  var runoff =  MergedRain_AMC.map(runoff_func)
+
+  var JoinedRR = Join.apply(rainfall, runoff, FilterOnStartTime);
+
+  var RainfallRunoff1 = JoinedRR.map(MergeBands);
+  var RainfallRunoff = ee.ImageCollection(RainfallRunoff1);
+
+  return RainfallRunoff.select('runoff').sum();
+};
+
+var Runoffx2001 = computeRunoff('2001-01-01', '2001-12-31');
+var Runoffx2002 = computeRunoff('2002-01-01', '2002-12-31');
+var Runoffx2003 = computeRunoff('2003-01-01', '2003-12-31');
+var Runoffx2004 = computeRunoff('2004-01-01', '2004-12-31');
+var Runoffx2005 = computeRunoff('2005-01-01', '2005-12-31');
+var Runoffx2006 = computeRunoff('2006-01-01', '2006-12-31');
+var Runoffx2007 = computeRunoff('2007-01-01', '2007-12-31');
+var Runoffx2008 = computeRunoff('2008-01-01', '2008-12-31');
+var Runoffx2009 = computeRunoff('2009-01-01', '2009-12-31');
+var Runoffx2010 = computeRunoff('2010-01-01', '2010-12-31');
+var Runoffx2011 = computeRunoff('2011-01-01', '2011-12-31');
+var Runoffx2012 = computeRunoff('2012-01-01', '2012-12-31');
+var Runoffx2013 = computeRunoff('2013-01-01', '2013-12-31');
+var Runoffx2014 = computeRunoff('2014-01-01', '2014-12-31');
+var Runoffx2015 = computeRunoff('2015-01-01', '2015-12-31');
+var Runoffx2016 = computeRunoff('2016-01-01', '2016-12-31');
+var Runoffx2017 = computeRunoff('2017-01-01', '2017-12-31');
+var Runoffx2018 = computeRunoff('2018-01-01', '2018-12-31');
+var Runoffx2019 = computeRunoff('2019-01-01', '2019-12-31');
+var Runoffx2020 = computeRunoff('2020-01-01', '2020-12-31');
+
+
+
+// Compute ppt mean and standard deviation
+var RunoffxCollection = ee.ImageCollection.fromImages([Runoffx2001, Runoffx2002, Runoffx2003, Runoffx2004, Runoffx2005, Runoffx2006, Runoffx2007, Runoffx2008, Runoffx2009, Runoffx2010, Runoffx2011, Runoffx2012, Runoffx2013, Runoffx2014, Runoffx2015, Runoffx2017, Runoffx2018, Runoffx2019, Runoffx2020]);
+var RunoffxstdDev = RunoffxCollection.reduce(ee.Reducer.stdDev());
+var RunoffxMean = RunoffxCollection.reduce(ee.Reducer.mean());
+
+var SDI2001 = (Runoffx2001.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2002 = (Runoffx2002.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2003 = (Runoffx2003.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2004 = (Runoffx2004.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2005 = (Runoffx2005.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2006 = (Runoffx2006.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2007 = (Runoffx2007.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2008 = (Runoffx2008.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2009 = (Runoffx2009.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2010 = (Runoffx2010.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2011 = (Runoffx2011.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2012 = (Runoffx2012.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2013 = (Runoffx2013.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2014 = (Runoffx2014.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2015 = (Runoffx2015.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2016 = (Runoffx2016.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2017 = (Runoffx2017.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2018 = (Runoffx2018.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2019 = (Runoffx2019.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SDI2020 = (Runoffx2020.subtract(RunoffxMean)).divide(RunoffxstdDev);
+
+
+var SDI2001xx = ee.ImageCollection.fromImages([SDI2001, SDI2002, SDI2003, SDI2004, SDI2005, SDI2006, SDI2007, SDI2008, SDI2009, SDI2010, SDI2011, SDI2012, SDI2013, SDI2014, SDI2015, SDI2017, SDI2018, SDI2019, SDI2020]);
+var SDI2001x = SDI2001xx.reduce(ee.Reducer.mean());
+
+
+//PDSI                               Palmer Drought Severity Index
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+// Define a function to compute RDI for a given period
+var computepdsi = function(startDates, endDates) {
+  // Filter the PET and precipitation data for the 12-month period
+  var pdsiCollections = ee.ImageCollection("IDAHO_EPSCOR/TERRACLIMATE")
+    .filterDate(startDates, endDates);
+
+  // Compute the mean PET and precipitation over the 12-month period
+  var pdsi = pdsiCollections.select('pdsi').mean().clip(Africa).multiply(0.01);
+
+  return pdsi;
+};
+
+// Compute ppt for 2001 to 2020
+var pdsi2001 = computepdsi('2001-01-01', '2001-12-31');
+var pdsi2002 = computepdsi('2002-01-01', '2002-12-31');
+var pdsi2003 = computepdsi('2003-01-01', '2003-12-31');
+var pdsi2004 = computepdsi('2004-01-01', '2004-12-31');
+var pdsi2005 = computepdsi('2005-01-01', '2005-12-31');
+var pdsi2006 = computepdsi('2006-01-01', '2006-12-31');
+var pdsi2007 = computepdsi('2007-01-01', '2007-12-31');
+var pdsi2008 = computepdsi('2008-01-01', '2008-12-31');
+var pdsi2009 = computepdsi('2009-01-01', '2009-12-31');
+var pdsi2010 = computepdsi('2010-01-01', '2010-12-31');
+var pdsi2011 = computepdsi('2011-01-01', '2011-12-31');
+var pdsi2012 = computepdsi('2012-01-01', '2012-12-31');
+var pdsi2013 = computepdsi('2013-01-01', '2013-12-31');
+var pdsi2014 = computepdsi('2014-01-01', '2014-12-31');
+var pdsi2015 = computepdsi('2015-01-01', '2015-12-31');
+var pdsi2016 = computepdsi('2016-01-01', '2016-12-31');
+var pdsi2017 = computepdsi('2017-01-01', '2017-12-31');
+var pdsi2018 = computepdsi('2018-01-01', '2018-12-31');
+var pdsi2019 = computepdsi('2019-01-01', '2019-12-31');
+var pdsi2020 = computepdsi('2020-01-01', '2020-12-31');
+
+var pdsi2001xx = ee.ImageCollection.fromImages([pdsi2001, pdsi2002, pdsi2003, pdsi2004, pdsi2005, pdsi2006, pdsi2007, pdsi2008, pdsi2009, pdsi2010, pdsi2011, pdsi2012, pdsi2013, pdsi2014, pdsi2015, pdsi2017, pdsi2018, pdsi2019, pdsi2020]);
+var pdsi2001x = pdsi2001xx.reduce(ee.Reducer.mean());
+
+//SPI12
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+// Define a function to compute RDI for a given period
+var computeppt = function(startDates, endDates) {
+  // Filter the PET and precipitation data for the 12-month period
+  var pptCollections = ee.ImageCollection('NASA/GPM_L3/IMERG_MONTHLY_V06')
+    .filterDate(startDates, endDates);
+
+  // Compute the mean PET and precipitation over the 12-month period
+  var ppts = pptCollections.select('precipitation').mosaic()
+    .multiply(24).multiply(30).clip(Africa);
+
+  // Compute the RDI using the formula
+  var ppt = ppts;
+  
+  return ppt;
+};
+
+// Compute ppt for 2001 to 2020
+var ppt2001 = computeppt('2001-01-01', '2001-12-31');
+var ppt2002 = computeppt('2002-01-01', '2002-12-31');
+var ppt2003 = computeppt('2003-01-01', '2003-12-31');
+var ppt2004 = computeppt('2004-01-01', '2004-12-31');
+var ppt2005 = computeppt('2005-01-01', '2005-12-31');
+var ppt2006 = computeppt('2006-01-01', '2006-12-31');
+var ppt2007 = computeppt('2007-01-01', '2007-12-31');
+var ppt2008 = computeppt('2008-01-01', '2008-12-31');
+var ppt2009 = computeppt('2009-01-01', '2009-12-31');
+var ppt2010 = computeppt('2010-01-01', '2010-12-31');
+var ppt2011 = computeppt('2011-01-01', '2011-12-31');
+var ppt2012 = computeppt('2012-01-01', '2012-12-31');
+var ppt2013 = computeppt('2013-01-01', '2013-12-31');
+var ppt2014 = computeppt('2014-01-01', '2014-12-31');
+var ppt2015 = computeppt('2015-01-01', '2015-12-31');
+var ppt2016 = computeppt('2016-01-01', '2016-12-31');
+var ppt2017 = computeppt('2017-01-01', '2017-12-31');
+var ppt2018 = computeppt('2018-01-01', '2018-12-31');
+var ppt2019 = computeppt('2019-01-01', '2019-12-31');
+var ppt2020 = computeppt('2020-01-01', '2020-12-31');
+var ppt2021 = computeppt('2021-01-01', '2021-12-31');
+// Compute ppt mean and standard deviation
+var PPTCollection = ee.ImageCollection.fromImages([ppt2001, ppt2002, ppt2003, ppt2004, ppt2005, ppt2006, ppt2007, ppt2008, ppt2009, ppt2010, ppt2011, ppt2012, ppt2013, ppt2014, ppt2015, ppt2017, ppt2018, ppt2019, ppt2020]);
+var PPTStdDev = PPTCollection.reduce(ee.Reducer.stdDev());
+var PPTMean = PPTCollection.reduce(ee.Reducer.mean());
+
+var SPI2001 = (ppt2001.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2002 = (ppt2002.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2003 = (ppt2003.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2004 = (ppt2004.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2005 = (ppt2005.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2006 = (ppt2006.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2007 = (ppt2007.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2008 = (ppt2008.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2009 = (ppt2009.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2010 = (ppt2010.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2011 = (ppt2011.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2012 = (ppt2012.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2013 = (ppt2013.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2014 = (ppt2014.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2015 = (ppt2015.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2016 = (ppt2016.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2017 = (ppt2017.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2018 = (ppt2018.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2019 = (ppt2019.subtract(PPTMean)).divide(PPTStdDev)
+var SPI2020 = (ppt2020.subtract(PPTMean)).divide(PPTStdDev)
+
+var SPI2001xx = ee.ImageCollection.fromImages([SPI2001, SPI2002, SPI2003, SPI2004, SPI2005, SPI2006, SPI2007, SPI2008, SPI2009, SPI2010, SPI2011, SPI2012, SPI2013, SPI2014, SPI2015, SPI2017, SPI2018, SPI2019, SPI2020]);
+var SPI2001x = SPI2001xx.reduce(ee.Reducer.mean());
+
+//PHDI                                         Palmer Hydrological Drought Index
+
+//PHDI = 0.5(PDSI + Z) - 1.5(SR - 1)
+var PHDI2001 = ((pdsi2001.add(SPI2001)).multiply(0.5)).subtract((SDI2001.subtract(1)).multiply(1.5))
+var PHDI2001x = ((pdsi2001x.add(SPI2001x)).multiply(0.5)).subtract((SDI2001x.subtract(1)).multiply(1.5))
+
+//Soil Moisture Deficit Index
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var fldas = ee.ImageCollection("NASA/FLDAS/NOAH01/C/GL/M/V001")
+
+var startYear = 2001;
+var endYear = 2001;
+
+var sm2001 = fldas.filter(ee.Filter.date(startYear + '-01-01', startYear + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2002 = fldas.filter(ee.Filter.date((startYear+1) + '-01-01', (startYear+1) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2003 = fldas.filter(ee.Filter.date((startYear+2) + '-01-01', (startYear+2) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2004 = fldas.filter(ee.Filter.date((startYear+3) + '-01-01', (startYear+3) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2005 = fldas.filter(ee.Filter.date((startYear+4) + '-01-01', (startYear+4) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2006 = fldas.filter(ee.Filter.date((startYear+5) + '-01-01', (startYear+5) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2007 = fldas.filter(ee.Filter.date((startYear+6) + '-01-01', (startYear+6) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2008 = fldas.filter(ee.Filter.date((startYear+7) + '-01-01', (startYear+7) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2009 = fldas.filter(ee.Filter.date((startYear+8) + '-01-01', (startYear+8) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2010 = fldas.filter(ee.Filter.date((startYear+9) + '-01-01', (startYear+9) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2011 = fldas.filter(ee.Filter.date((startYear+10) + '-01-01', (startYear+10) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2012 = fldas.filter(ee.Filter.date((startYear+11) + '-01-01', (startYear+11) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2013 = fldas.filter(ee.Filter.date((startYear+12) + '-01-01', (startYear+12) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2014 = fldas.filter(ee.Filter.date((startYear+13) + '-01-01', (startYear+13) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2015 = fldas.filter(ee.Filter.date((startYear+14) + '-01-01', (startYear+14) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2016 = fldas.filter(ee.Filter.date((startYear+15) + '-01-01', (startYear+15) + '-12-31'))
+.select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2017 = fldas.filter(ee.Filter.date((startYear+16) + '-01-01', (startYear+16) + '-12-31'))
+.select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2018 = fldas.filter(ee.Filter.date((startYear+17) + '-01-01', (startYear+17) + '-12-31'))
+.select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2019 = fldas.filter(ee.Filter.date((startYear+18) + '-01-01', (startYear+18) + '-12-31'))
+.select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+var sm2020 = fldas.filter(ee.Filter.date((startYear+19) + '-01-01', (startYear+19) + '-12-31'))
+.select('SoilMoi00_10cm_tavg').mosaic().clip(Africa);
+
+
+// Compute ppt mean and standard deviation
+var smCollection = ee.ImageCollection.fromImages([sm2001, sm2002, sm2003, sm2004, sm2005, sm2006, sm2007, sm2008, sm2009, sm2010, sm2011, sm2012, sm2013, sm2014, sm2015, sm2017, sm2018, sm2019, sm2020]);
+var smstdDev = smCollection.reduce(ee.Reducer.stdDev());
+var smMean = smCollection.reduce(ee.Reducer.mean());
+
+
+var smd2001 = (sm2001.subtract(smMean)).divide(smstdDev);
+var smd2002 = (sm2002.subtract(smMean)).divide(smstdDev);
+var smd2003 = (sm2003.subtract(smMean)).divide(smstdDev);
+var smd2004 = (sm2004.subtract(smMean)).divide(smstdDev);
+var smd2005 = (sm2005.subtract(smMean)).divide(smstdDev);
+var smd2006 = (sm2006.subtract(smMean)).divide(smstdDev);
+var smd2007 = (sm2007.subtract(smMean)).divide(smstdDev);
+var smd2008 = (sm2008.subtract(smMean)).divide(smstdDev);
+var smd2009 = (sm2009.subtract(smMean)).divide(smstdDev);
+var smd2010 = (sm2010.subtract(smMean)).divide(smstdDev);
+var smd2011 = (sm2011.subtract(smMean)).divide(smstdDev);
+var smd2012 = (sm2012.subtract(smMean)).divide(smstdDev);
+var smd2013 = (sm2013.subtract(smMean)).divide(smstdDev);
+var smd2014 = (sm2014.subtract(smMean)).divide(smstdDev);
+var smd2015 = (sm2015.subtract(smMean)).divide(smstdDev);
+var smd2016 = (sm2016.subtract(smMean)).divide(smstdDev);
+var smd2017 = (sm2017.subtract(smMean)).divide(smstdDev);
+var smd2018 = (sm2018.subtract(smMean)).divide(smstdDev);
+var smd2019 = (sm2019.subtract(smMean)).divide(smstdDev);
+var smd2020 = (sm2020.subtract(smMean)).divide(smstdDev);
+
+var smd2001xx = ee.ImageCollection.fromImages([smd2001, smd2002, smd2003, smd2004, smd2005, smd2006, smd2007, smd2008, smd2009, smd2010, smd2011, smd2012, smd2013, smd2014, smd2015, smd2017, smd2018, smd2019, smd2020]);
+var smd2001x = smd2001xx.reduce(ee.Reducer.mean());
+
+var sm2001 = fldas.filter(ee.Filter.date(startYear + '-01-01', startYear + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg');
+var sm2002 = fldas.filter(ee.Filter.date((startYear+1) + '-01-01', (startYear+1) + '-12-31'))
+                  .select('SoilMoi00_10cm_tavg')     ;   
+var sm2003 = fldas.filter(ee.Filter.date((startYear + 2) + '-01-01', (startYear + 2) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2004 = fldas.filter(ee.Filter.date((startYear + 3) + '-01-01', (startYear + 3) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2005 = fldas.filter(ee.Filter.date((startYear + 4) + '-01-01', (startYear + 4) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2006 = fldas.filter(ee.Filter.date((startYear + 5) + '-01-01', (startYear + 5) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2007 = fldas.filter(ee.Filter.date((startYear + 6) + '-01-01', (startYear + 6) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2008 = fldas.filter(ee.Filter.date((startYear + 7) + '-01-01', (startYear + 7) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2009 = fldas.filter(ee.Filter.date((startYear + 8) + '-01-01', (startYear + 8) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2010 = fldas.filter(ee.Filter.date((startYear + 9) + '-01-01', (startYear + 9) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2011 = fldas.filter(ee.Filter.date((startYear + 10) + '-01-01', (startYear + 10) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2012 = fldas.filter(ee.Filter.date((startYear + 11) + '-01-01', (startYear + 11) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2013 = fldas.filter(ee.Filter.date((startYear + 12) + '-01-01', (startYear + 12) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2014 = fldas.filter(ee.Filter.date((startYear + 13) + '-01-01', (startYear + 13) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2015 = fldas.filter(ee.Filter.date((startYear + 14) + '-01-01', (startYear + 14) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2016 = fldas.filter(ee.Filter.date((startYear + 15) + '-01-01', (startYear + 15) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2017 = fldas.filter(ee.Filter.date((startYear + 16) + '-01-01',(startYear + 16) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');    
+var sm2018 = fldas.filter(ee.Filter.date((startYear + 17) + '-01-01', (startYear + 17) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2019 = fldas.filter(ee.Filter.date((startYear + 18) + '-01-01', (startYear + 18) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+var sm2020 = fldas.filter(ee.Filter.date((startYear + 19) + '-01-01', (startYear + 19) + '-12-31'))
+.select('SoilMoi00_10cm_tavg');
+
+var sm2001_2020 = fldas.filter(ee.Filter.date('2001-01-01', '2020-12-31'))
+.select('SoilMoi00_10cm_tavg');
+
+//smd as a function for utility in composite
+var smd2001 = sm2001.map(function(image){
+  return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2002 = sm2002.map(function(image){
+  return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2003 = sm2003.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2004 = sm2004.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2005 = sm2005.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2006 = sm2006.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2007 = sm2007.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2008 = sm2008.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2009 = sm2009.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2010 = sm2010.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2011 = sm2011.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2012 = sm2012.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2013 = sm2013.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2014 = sm2014.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2015 = sm2015.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2016 = sm2016.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2017 = sm2017.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2018 = sm2018.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2019 = sm2019.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+var smd2020 = sm2020.map(function(image){
+return((image.subtract(smMean)).divide(smstdDev))
+});
+
+var smd2001xx = ee.ImageCollection.fromImages([smd2001, smd2002, smd2003, smd2004, smd2005, smd2006, smd2007, smd2008, smd2009, smd2010, smd2011, smd2012, smd2013, smd2014, smd2015, smd2017, smd2018, smd2019, smd2020]);
+var smd2001x = smd2001xx.reduce(ee.Reducer.mean());
+
+
+var smd11 = sm2001_2020.map(function(image){
+  return((image.subtract(smMean)).divide(smstdDev))
+});
+
+
+// var smd11 = smd2001.map(function(image){
+//   return image.addBands(smd2002).addBands(smd2003).addBands(smd2004)
+//   .addBands(smd2005).addBands(smd2006).addBands(smd2007).addBands(smd2008).addBands(smd2009).
+//   addBands(smd2010).addBands(smd2011).addBands(smd2012).addBands(smd2013).addBands(smd2014)
+//   .addBands(smd2014).addBands(smd2015).addBands(smd2016).addBands(smd2017).addBands(smd2018)
+//   .addBands(smd2019).addBands(smd2020)
+//   .clip(Africa).mosaic;
+// });
+
+
+
+// var smd1 = smd2001xx.map(function(image){
+// return((image.reduce(ee.Reducer.mean())))  
+//   })
+
+
+// var smd2020 = sm2020.map(function(image){
+// return((image.subtract(smMean)).divide(smstdDev))
+// });
+
+// var smd2020 = smd2001x.map(function(image){
+// return((image.subtract(smMean)).divide(smstdDev))
+// });
+
+
+
+//SHDI                              Standardized Hydrological drought index
+var Runoffx2001 = computeRunoff('2001-01-01', '2001-12-31').log();
+var Runoffx2002 = computeRunoff('2002-01-01', '2002-12-31').log();
+var Runoffx2003 = computeRunoff('2003-01-01', '2003-12-31').log();
+var Runoffx2004 = computeRunoff('2004-01-01', '2004-12-31').log();
+var Runoffx2005 = computeRunoff('2005-01-01', '2005-12-31').log();
+var Runoffx2006 = computeRunoff('2006-01-01', '2006-12-31').log();
+var Runoffx2007 = computeRunoff('2007-01-01', '2007-12-31').log();
+var Runoffx2008 = computeRunoff('2008-01-01', '2008-12-31').log();
+var Runoffx2009 = computeRunoff('2009-01-01', '2009-12-31').log();
+var Runoffx2010 = computeRunoff('2010-01-01', '2010-12-31').log();
+var Runoffx2011 = computeRunoff('2011-01-01', '2011-12-31').log();
+var Runoffx2012 = computeRunoff('2012-01-01', '2012-12-31').log();
+var Runoffx2013 = computeRunoff('2013-01-01', '2013-12-31').log();
+var Runoffx2014 = computeRunoff('2014-01-01', '2014-12-31').log();
+var Runoffx2015 = computeRunoff('2015-01-01', '2015-12-31').log();
+var Runoffx2016 = computeRunoff('2016-01-01', '2016-12-31').log();
+var Runoffx2017 = computeRunoff('2017-01-01', '2017-12-31').log();
+var Runoffx2018 = computeRunoff('2018-01-01', '2018-12-31').log();
+var Runoffx2019 = computeRunoff('2019-01-01', '2019-12-31').log();
+var Runoffx2020 = computeRunoff('2020-01-01', '2020-12-31').log();
+
+
+
+// Compute ppt mean and standard deviation
+var RunoffxCollection = ee.ImageCollection.fromImages([Runoffx2001, Runoffx2002, Runoffx2003, Runoffx2004, Runoffx2005, Runoffx2006, Runoffx2007, Runoffx2008, Runoffx2009, Runoffx2010, Runoffx2011, Runoffx2012, Runoffx2013, Runoffx2014, Runoffx2015, Runoffx2017, Runoffx2018, Runoffx2019, Runoffx2020]);
+var RunoffxstdDev = RunoffxCollection.reduce(ee.Reducer.stdDev());
+var RunoffxMean = RunoffxCollection.reduce(ee.Reducer.mean());
+
+var SHDI2001 = (Runoffx2001.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2002 = (Runoffx2002.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2003 = (Runoffx2003.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2004 = (Runoffx2004.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2005 = (Runoffx2005.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2006 = (Runoffx2006.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2007 = (Runoffx2007.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2008 = (Runoffx2008.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2009 = (Runoffx2009.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2010 = (Runoffx2010.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2011 = (Runoffx2011.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2012 = (Runoffx2012.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2013 = (Runoffx2013.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2014 = (Runoffx2014.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2015 = (Runoffx2015.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2016 = (Runoffx2016.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2017 = (Runoffx2017.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2018 = (Runoffx2018.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2019 = (Runoffx2019.subtract(RunoffxMean)).divide(RunoffxstdDev);
+var SHDI2020 = (Runoffx2020.subtract(RunoffxMean)).divide(RunoffxstdDev);
+
+var SHDI2001xx = ee.ImageCollection.fromImages([SHDI2001, SHDI2002, SHDI2003, SHDI2004, SHDI2005, SHDI2006, SHDI2007, SHDI2008, SHDI2009, SHDI2010, SHDI2011, SHDI2012, SHDI2013, SHDI2014, SHDI2015, SHDI2017, SHDI2018, SHDI2019, SHDI2020]);
+var SHDI2001x = SHDI2001xx.reduce(ee.Reducer.mean());
+
+//elevation and slope
+var dataset = ee.Image('CGIAR/SRTM90_V4').clip(Africa);
+var elevation = dataset.select('elevation');
+var slope = ee.Terrain.slope(elevation);
+
+
+//precipitation
+var chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+var dataset= chirps.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('precipitation');
+var precipitation = layer.mean().clip(Africa).multiply(365);
+
+
+//Evapotranspiration
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('Evap_tavg');
+var evapotranspiration = layer.mean().clip(Africa).multiply(86400).multiply(365);
+
+
+//Soil Moisture
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('SoilMoi00_10cm_tavg');
+var soilmoisture = layer.mean().clip(Africa);
+
+
+// var composite = smd2001.map(function(image){
+//   return image.addBands(SDI2001).addBands(PHDI2001).addBands(SHDI2001).addBands(elevation).addBands(slope).addBands(precipitation)
+//   .addBands(evapotranspiration).addBands(soilmoisture).clip(Africa);
+// });
+ 
+// var composite = smd2001.map(function(image){
+//   return image.addBands(SDI2001).addBands(PHDI2001).addBands(SHDI2001).addBands(elevation).addBands(slope).addBands(precipitation)
+//   .addBands(evapotranspiration).addBands(soilmoisture).clip(Africa);
+// });
+ 
+  var composite = smd2001.map(function(image){
+  return image.addBands(SDI2001).addBands(PHDI2001).addBands(SHDI2001).addBands(elevation).addBands(slope).addBands(precipitation)
+  .addBands(evapotranspiration).addBands(soilmoisture).clip(Africa);
+});
+ 
+ 
+//denoise with Gaussian smoothing
+var gaussianKernel = ee.Kernel.gaussian({
+  radius: 3,
+  units: 'pixels',
+  sigma: 2
+});
+var denoisedComposite = composite.mosaic().convolve(gaussianKernel);
+print(denoisedComposite)
+
+
+Export.image.toDrive({
+  image:denoisedComposite,
+  description: 'CompH_G2001',
+  region: Africa,
+  scale: 5000,
+})
+
+
+var bands = ['SoilMoi00_10cm_tavg','runoff','pdsi','runoff_1','elevation','slope','precipitation','Evap_tavg','SoilMoi00_10cm_tavg_1']
+
+var SDI2001 = SDI2001.rename('output');
+
+var trainingImage = SDI2001.addBands(denoisedComposite);
+
+
+//denoise with Gaussian smoothing 2
+var gaussianKernel = ee.Kernel.gaussian({
+  radius: 3,
+  units: 'pixels',
+  sigma: 2
+});
+var trainingImage = trainingImage.convolve(gaussianKernel);
+
+
+Export.image.toDrive({
+  image:trainingImage,
+  description: 'SDI_G2001',
+  region: Africa,
+  scale: 5000,
+})
+
+
+var trainingData = trainingImage.sample({
+  region: Africa,
+  scale: 30,
+  numPixels: 100,
+  tileScale: 16})
+
+print(trainingData.first())
+//trainingData = predictors.sample...(predictors/independent variables that affects the response and 
+//can be set or measured)
+
+
+var bandNames = trainingImage.bandNames();
+print(bandNames, 'band names');
+print(trainingData.size());
+var point_samples_noNull = trainingData.filter(
+  ee.Filter.notNull(trainingData.first().propertyNames())
+);
+print(point_samples_noNull.size());
+
+
+// Use smileRandomForest to predict band 2, which should match with the already computed SDI 
+var model = ee.Classifier.smileRandomForest(10).setOutputMode('REGRESSION').train({
+features: point_samples_noNull,
+classProperty: 'output',//response/Actual-dependent variable
+inputProperties: bandNames// predictors-independent variables
+});
+
+var dict = model.explain();
+print('Explain:',dict);
+var variable_importance = ee.Feature(null, ee.Dictionary(dict).get('importance'));
+
+var chart =
+ui.Chart.feature.byProperty(variable_importance)
+.setChartType('ColumnChart')
+.setOptions({
+title: 'Random Forest Variable Importance',
+legend: {position: 'none'},
+hAxis: {title: 'Bands'},
+vAxis: {title: 'Importance'}
+});
+ 
+print(chart);
+
+
+// Accuracy assessment
+
+// Regression accuracy is determined by RMSE
+
+// RMSE Function
+var calculateRmse = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var rmse = observed.subtract(predicted).pow(2)
+      .reduce('mean', [0]).sqrt().get([0])
+    return rmse
+}
+
+var modelOutput = trainingData.classify(
+  model, 'rfRegression')
+var modelRmse = calculateRmse(modelOutput)
+print('Model RMSE', modelRmse) 
+
+//MSE
+var calculateMSE = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var mse = observed.subtract(predicted).pow(2) 
+      .reduce('mean', [0]).get([0])
+    return mse
+}
+
+var modelMSE = calculateMSE(modelOutput)
+print('Model MSE', modelMSE)  
+
+//MAE
+var calculateMaE = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var mae = observed.subtract(predicted).abs() 
+      .reduce('mean', [0]).get([0])
+    return mae
+}
+
+var modelMaE = calculateMaE(modelOutput)
+print('Model MAE', modelMaE) 
+
+//MPE
+var calculateMPE = function(input) {
+  var observed = ee.Array(input.aggregate_array('output'));
+  var predicted = ee.Array(input.aggregate_array('rfRegression'));
+  var mpe = observed.subtract(predicted).divide(observed).multiply(100)
+    .reduce('mean', [0]).get([0]); 
+  return mpe;
+};
+
+var modelMPE = calculateMPE(modelOutput);
+print('Model MPE', modelMPE);
+
+
+// Run the prediction on Input image
+var predictions = trainingImage.classify(model);
+
+//var denoisedCompositeVis = denoisedComposite.visualize({bands: ['runoff'], min: 0, max: 1, palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"]});
+//Map.addLayer(SDI2001,{}, 'SDI/runoff');
+Map.addLayer(predictions, {min: 0, max: 1, palette: ['red', 'green']}, 'predictions_SDI2001');
+//from the response/actual and predictors we get the predicted/predictions
+
+Export.image.toDrive({image:predictions,
+  description: 'predictions_SDI2001',
+  region: Africa,
+  scale: 5000,
+  maxPixels: 97229256727 , 
+})

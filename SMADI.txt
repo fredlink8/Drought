@@ -1,0 +1,372 @@
+//NDDI
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var geometry = Africa.geometry()
+var l7 = ee.ImageCollection("LANDSAT/LE07/C02/T1")//.filterBounds(Africa)
+var rp = ee.FeatureCollection.randomPoints(Africa,1000)
+var dataset = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE')
+var alos = ee.Image('JAXA/ALOS/AW3D30/V2_2');
+var chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+var fldas = ee.ImageCollection("NASA/FLDAS/NOAH01/C/GL/M/V001") 
+
+
+Map.setCenter(26.2, 0.5, 6)  
+
+var cloud_free = ee.Algorithms.Landsat.simpleComposite({
+  collection: l7.filterDate('2001-01-01', '2001-12-31'),
+  asFloat: true
+})
+
+
+
+// NDDI
+var computeNDDI = function(image) { 
+    var ndvi = image.normalizedDifference(['B4', 'B3']);
+    var ndwi = image.normalizedDifference(['B4', 'B5']);
+    var nddi = ndvi.subtract(ndwi).divide(ndvi.add(ndwi));
+  return nddi.clip(Africa);
+};
+
+var NDDI = l7.map(computeNDDI);
+var NDDI = NDDI.median()
+
+
+
+//VHI  
+var dataset = ee.ImageCollection('MODIS/061/MOD13A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var ndvi = dataset.select('NDVI');
+var ndviMin = ndvi.min();
+var ndviMax = ndvi.max();
+var vci = ndvi.map(function(image) {
+  return image.subtract(ndviMin).divide(ndviMax.subtract(ndviMin)).clip(Africa);
+});
+
+var dataset = ee.ImageCollection('MODIS/006/MOD11A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var landSurfaceTemperature = dataset.select('LST_Day_1km');
+
+var LST = landSurfaceTemperature.reduce(ee.Reducer.mean()).clip(Africa);
+var LSTmin = landSurfaceTemperature.reduce(ee.Reducer.min()).clip(Africa);
+var LSTmax = landSurfaceTemperature.reduce(ee.Reducer.max()).clip(Africa);
+var TCI = landSurfaceTemperature.map(function(img) {
+  return LSTmax.subtract(img).divide(LSTmax.subtract(LSTmin)).clip(Africa);
+});
+
+var TCImosaic = TCI.mosaic()
+var visualized_range = {min: 0, max: 1,palette:['#fee8c8','#fdbb84','#e34a33']};
+var VHI = vci.map(function(image) {
+  return image.multiply(0.5).add(TCImosaic.multiply(0.5)).clip(Africa);
+});
+
+
+
+//Soil Moisture Deficit Index
+var fldas = ee.ImageCollection("NASA/FLDAS/NOAH01/C/GL/M/V001")
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('SoilMoi00_10cm_tavg');
+var annualMean = layer.mean().clip(Africa);
+var annualmax = layer.max().clip(Africa);
+var annualmin = layer.min().clip(Africa);
+var deficit = annualmax.subtract(annualmin);
+var meanDeficit = deficit.reduce(ee.Reducer.mean());
+var smdi = deficit.divide(annualmax);
+var SMDI = smdi.reduce(ee.Reducer.mean());
+print(SMDI)
+
+
+//ETDI
+var dataset = ee.ImageCollection('MODIS/006/MOD16A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var ET = dataset.select('ET');
+var PET = dataset.select('PET')
+var annualmeanET = ET.mean().clip(Africa)
+var annualmeanPET = PET.mean().clip(Africa)
+var waterStress = annualmeanPET.subtract(annualmeanET).divide(annualmeanPET);
+var medianWaterStress = waterStress.reduce(ee.Reducer.median());
+var maxWaterStress = waterStress.reduce(ee.Reducer.max());
+var minWaterStress = waterStress.reduce(ee.Reducer.min());
+var longTermMean = waterStress.reduce(ee.Reducer.mean());
+var waterStressAnomaly = waterStress.subtract(longTermMean);
+var percentageWaterStressAnomaly = waterStressAnomaly.divide(longTermMean).multiply(100);
+var ETDI = percentageWaterStressAnomaly.divide(100).multiply(maxWaterStress.subtract(minWaterStress)).add(minWaterStress);
+
+
+//CMI
+var dataset = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var PET = dataset.select('pet').mean();
+var soilmoisture = dataset.select('soil').mean();
+
+var moisture_deficit = PET.subtract(soilmoisture);
+var normalized_moisture_deficit = moisture_deficit.divide(PET);
+var CMI = normalized_moisture_deficit
+var crop_moisture_index = normalized_moisture_deficit.multiply(100);
+
+
+//SMADI
+var dataset=ee.ImageCollection('NASA/FLDAS/NOAH01/C/GL/M/V001')
+              .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var ssm = dataset.select('SoilMoi00_10cm_tavg');
+var SSM = ssm.reduce(ee.Reducer.mean()).clip(Africa);
+var SSMmax = ssm.reduce(ee.Reducer.max()).clip(Africa);
+var SSMmin = ssm.reduce(ee.Reducer.min()).clip(Africa);
+var SMCI = SSMmax.subtract(SSM).divide(SSMmax.subtract(SSMmin)).clip(Africa);
+var dataset = ee.ImageCollection('MODIS/006/MOD11A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var landSurfaceTemperature = dataset.select('LST_Day_1km');
+
+var LST = landSurfaceTemperature.reduce(ee.Reducer.mean()).clip(Africa);
+var LSTmin = landSurfaceTemperature.reduce(ee.Reducer.min()).clip(Africa);
+var LSTmax = landSurfaceTemperature.reduce(ee.Reducer.max()).clip(Africa);
+var MTCI = LST.subtract(LSTmin).divide(LSTmax.subtract(LSTmin));
+var dataset = ee.ImageCollection('MODIS/061/MOD13A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var ndvi = dataset.select('NDVI');
+var collectionLagged = ndvi.map(function(image) {
+  return image.updateMask(image).set('system:time_start', 
+  ee.Date(image.get('system:time_start')).advance(8, 'day'));
+});
+
+var ndviMin = collectionLagged.reduce(ee.Reducer.min());
+var ndviMax = collectionLagged.reduce(ee.Reducer.max());
+
+var vci = collectionLagged.map(function(image) {
+  return image.subtract(ndviMin).divide(ndviMax.subtract(ndviMin)).clip(Africa);
+});
+
+var TCI = landSurfaceTemperature.map(function(img) {
+  return LSTmax.subtract(img).divide(LSTmax.subtract(LSTmin)).clip(Africa);
+});
+
+var TCImosaic = TCI.mosaic()
+var visualized_range = {min: 0, max: 1,palette:['#fee8c8','#fdbb84','#e34a33']};
+var smadi = vci.map(function(image) {
+  return SMCI.multiply(MTCI.divide(image)).clip(Africa);
+});
+var SMADI_normalized = smadi.map(function(image) {
+  return image.subtract(smadi.min()).divide(smadi.max().subtract(smadi.min())).clip(Africa);
+});
+var SMADI = SMADI_normalized.mosaic();
+
+
+//NMDI
+var dataset = ee.ImageCollection('MODIS/061/MOD09A1')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var nmdi = dataset.map(function(image) {
+  var nmdi = (image.select('sur_refl_b02').subtract(image.select('sur_refl_b06').subtract(image.select('sur_refl_b07'))))
+  .divide(image.select('sur_refl_b02').add(image.select('sur_refl_b06').subtract(image.select('sur_refl_b07'))));
+  return nmdi.clip(Africa);
+});
+var NMDI = nmdi.mosaic()
+
+
+// SDCI
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var dataset = ee.ImageCollection('MODIS/006/MOD11A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var landSurfaceTemperature = dataset.select('LST_Day_1km');
+
+var LST = landSurfaceTemperature.reduce(ee.Reducer.mean()).clip(Africa);
+var LSTmin = landSurfaceTemperature.reduce(ee.Reducer.min()).clip(Africa);
+var LSTmax = landSurfaceTemperature.reduce(ee.Reducer.max()).clip(Africa);
+var TCI = landSurfaceTemperature.map(function(img) {
+  return LSTmax.subtract(img).divide(LSTmax.subtract(LSTmin)).clip(Africa);
+});
+
+var dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_MONTHLY_V06')
+    .filterDate('2001-01-01', '2001-12-31');
+var ppt = dataset.select('precipitation');
+var pptmin = ppt.reduce(ee.Reducer.min());
+var pptmax = ppt.reduce(ee.Reducer.max());
+var pptmosaic = dataset.select('precipitation').mosaic();
+var PCI = pptmosaic.subtract(pptmin).divide(pptmax.subtract(pptmin)).clip(Africa);
+var dataset = ee.ImageCollection('MODIS/061/MOD13A2')
+                  .filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var ndvi = dataset.select('NDVI');
+var ndviMin = ndvi.min();
+var ndviMax = ndvi.max();
+var VCI = ndvi.map(function(image) {
+  return image.subtract(ndviMin).divide(ndviMax.subtract(ndviMin)).clip(Africa);
+});
+var SDCI = TCI.mosaic().multiply(0.25).add(PCI.multiply(0.50)).add(VCI.mosaic().multiply(0.25)).clip(Africa);
+
+
+//elevation and slope
+var dataset = ee.Image('CGIAR/SRTM90_V4').clip(Africa);
+var elevation = dataset.select('elevation');
+var slope = ee.Terrain.slope(elevation);
+
+
+//precipitation
+var dataset= chirps.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('precipitation');
+var precipitation = layer.mean().clip(Africa).multiply(365);
+
+
+//Evapotranspiration
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('Evap_tavg');
+var evapotranspiration = layer.mean().clip(Africa).multiply(86400).multiply(365);
+
+
+//Soil Moisture
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2001-12-31'));
+var layer = dataset.select('SoilMoi00_10cm_tavg');
+var soilmoisture = layer.mean().clip(Africa);
+
+
+// Composite
+var composite = VHI.map(function(image) {
+  return image.addBands(NDDI).addBands(SMDI).addBands(ETDI).addBands(CMI).addBands(SMADI)
+  .addBands(NMDI).addBands(SDCI).addBands(elevation).addBands(slope).addBands(precipitation)
+  .addBands(evapotranspiration).addBands(soilmoisture).clip(Africa);
+});
+
+var bands =[VHI, NDDI, SMDI, ETDI, CMI, SMADI,NMDI, SDCI, elevation, slope, precipitation, evapotranspiration, soilmoisture];
+
+//denoise with Gaussian smoothing
+var gaussianKernel = ee.Kernel.gaussian({
+  radius: 3,
+  units: 'pixels',
+  sigma: 2
+});
+var denoisedComposite = composite.mosaic().convolve(gaussianKernel);
+
+var bands = ['NDVI','nd','mean','PET','pet','SoilMoi00_10cm_tavg_min','sur_refl_b02',
+'LST_Day_1km_max','elevation','slope','precipitation','Evap_tavg','SoilMoi00_10cm_tavg']
+//var bands =['mean']
+
+var SMADI = SMADI.rename('output');
+Map.addLayer(SMADI)
+//var classBand = denoisedComposite.select('mean').int();
+
+var trainingImage = SMADI.addBands(denoisedComposite);
+
+
+
+
+//denoise with Gaussian smoothing 2
+var gaussianKernel = ee.Kernel.gaussian({
+  radius: 3,
+  units: 'pixels',
+  sigma: 2
+});
+var trainingImage = trainingImage.convolve(gaussianKernel);
+
+
+
+
+
+var trainingData = trainingImage.sample({
+  region: Africa,
+  scale: 30,
+  numPixels: 100,
+  tileScale: 16})
+
+print(trainingData.first())
+
+
+var bandNames = trainingImage.bandNames();
+print(bandNames, 'band names');
+print(trainingData.size());
+var point_samples_noNull = trainingData.filter(
+  ee.Filter.notNull(trainingData.first().propertyNames())
+);
+print(point_samples_noNull.size());
+
+
+
+// Use smileRandomForest to predict band 6, which should match with the already computed SMADI 
+var model = ee.Classifier.smileRandomForest(10).setOutputMode('REGRESSION').train({
+features: point_samples_noNull,
+classProperty: 'output',
+inputProperties: bandNames
+});
+
+var dict = model.explain();
+print('Explain:',dict);
+var variable_importance = ee.Feature(null, ee.Dictionary(dict).get('importance'));
+
+
+var chart =
+ui.Chart.feature.byProperty(variable_importance)
+.setChartType('ColumnChart')
+.setOptions({
+title: 'Random Forest Variable Importance',
+legend: {position: 'none'},
+hAxis: {title: 'Bands'},
+vAxis: {title: 'Importance'}
+});
+ 
+print(chart);
+
+// Accuracy assessment
+
+// Regression accuracy is determined by RMSE
+
+// RMSE Function
+var calculateRmse = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var rmse = observed.subtract(predicted).pow(2)
+      .reduce('mean', [0]).sqrt().get([0])
+    return rmse
+}
+
+var modelOutput = trainingData.classify(
+  model, 'rfRegression')
+var modelRmse = calculateRmse(modelOutput)
+print('Model RMSE', modelRmse) 
+
+//MSE
+var calculateMSE = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var mse = observed.subtract(predicted).pow(2) 
+      .reduce('mean', [0]).get([0])
+    return mse
+}
+
+var modelMSE = calculateMSE(modelOutput)
+print('Model MSE', modelMSE)  
+
+//MAE
+var calculateMaE = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var mae = observed.subtract(predicted).abs() 
+      .reduce('mean', [0]).get([0])
+    return mae
+}
+
+var modelMaE = calculateMaE(modelOutput)
+print('Model MAE', modelMaE) 
+
+//MPE Mean Percentage error
+var calculateMPE = function(input) {
+    var observed = ee.Array(input.aggregate_array('output'))
+    var predicted = ee.Array(input.aggregate_array('rfRegression'))
+    var mpe = observed.subtract(predicted).divide(observed).multiply(100)
+      .reduce('mean', [0]).get([0])
+    return mpe
+}
+
+var modelMPE = calculateMPE(modelOutput)
+print('Model MPE', modelMPE)
+
+
+// Run the prediction on Input image
+var predictions = trainingImage.classify(model);
+
+
+var denoisedCompositeVis = denoisedComposite.visualize({bands: ['SoilMoi00_10cm_tavg_min'], min: 0, max: 1, palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"]});
+Map.addLayer(SMADI,{}, 'smadi/SoilMoi00_10cm_tavg_min layer');
+Map.addLayer(predictions, {min: 0, max: 1, palette: ['red', 'green']}, 'predictions');
+
+
+Export.image.toDrive({image:predictions,
+  description: 'predictions',
+  region: Africa,
+  scale: 5000,
+  maxPixels: 97229256727 ,
+})

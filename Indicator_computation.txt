@@ -1,0 +1,784 @@
+
+//NDDI                                          Normalized Difference Drought Index
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var geometry = Africa.geometry()
+var l7 = ee.ImageCollection("LANDSAT/LE07/C01/T1")//.filterBounds(Africa)
+var rp = ee.FeatureCollection.randomPoints(Africa,1000)
+var dataset = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE')
+var alos = ee.Image('JAXA/ALOS/AW3D30/V2_2');
+var chirps = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+var fldas = ee.ImageCollection("NASA/FLDAS/NOAH01/C/GL/M/V001")
+
+Map.centerObject(Africa)
+Map.setCenter(26.2, 0.5, 6)
+
+
+var cloud_free = ee.Algorithms.Landsat.simpleComposite({
+  collection: l7.filterDate('2001-01-01', '2020-12-31'),
+  asFloat: true
+})
+
+// // Normalized Difference Drought Index (NDDI)
+// var nddi = cloud_free.normalizedDifference(['B4', 'B3']).rename('NDDI');
+
+// Map.addLayer(nddi.clip(Africa), {min: -1, max: 1, palette: ['red', 'white', 'green']}, 'NDDis');
+
+
+// Define a function to compute the Normalized Difference Drought Index (NDDI)
+var computeNDDI = function(image) {
+  // Compute the Normalized Difference Vegetation Index (NDVI)
+  var ndvi = image.normalizedDifference(['B4', 'B3']);
+  
+  // Compute the Normalized Difference Water Index (NDWI)
+  var ndwi = image.normalizedDifference(['B4', 'B5']);
+  
+  // Compute the NDDI
+  var nddi = ndvi.subtract(ndwi).divide(ndvi.add(ndwi));
+  
+  // Return the computed NDDI
+  return nddi.clip(Africa);
+};
+
+// Apply the computeNDDI function to the Landsat 7 image collection
+var NDDI = l7.map(computeNDDI);
+var NDDI = NDDI.median()
+
+// Display the NDDI values using a color palette
+Map.addLayer(NDDI, {min: -2, max: 2, 
+palette: ['#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd']}, 'NDDI');
+
+// Export.image.toDrive({image: NDDI.mean(), 
+//   description: 'lksmean', 
+//   region: Africa.geometry(), 
+//   scale: 5000});
+  
+//   Export.image.toDrive({image: NDDI.mosaic(), 
+//   description: 'lksmosaic', 
+//   region: Africa.geometry(), 
+//   scale: 5000});
+  
+     Export.image.toDrive({image: NDDI, 
+  description: 'NDDI2001_2020', 
+  region: Africa.geometry(), 
+  scale: 5000});
+  
+  
+  
+  
+  
+  
+  
+  
+  
+//VHI                                                       Vegetation Health Index 
+
+var dataset = ee.ImageCollection('MODIS/061/MOD13A2')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var ndvi = dataset.select('NDVI');
+// Compute the minimum and maximum NDVI values for the collection.
+var ndviMin = ndvi.min();
+var ndviMax = ndvi.max();
+
+// Compute the VCI for each image in the collection.
+var vci = ndvi.map(function(image) {
+  return image.subtract(ndviMin).divide(ndviMax.subtract(ndviMin)).clip(Africa);
+});
+
+// Visualize the VCI.
+var vciVis = {
+  min: 0.0,
+  max: 1.0,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+    '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+    '012E01', '011D01', '011301'
+  ],
+};
+Map.addLayer(vci, vciVis, 'VCI');
+
+
+Export.image.toDrive({
+  image:vci.mosaic(),
+  description: 'VCI',
+  region: Africa,
+  scale: 5000,
+})
+
+
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var dataset = ee.ImageCollection('MODIS/006/MOD11A2')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var landSurfaceTemperature = dataset.select('LST_Day_1km');
+
+var LST = landSurfaceTemperature.reduce(ee.Reducer.mean()).clip(Africa);
+var LSTmin = landSurfaceTemperature.reduce(ee.Reducer.min()).clip(Africa);
+var LSTmax = landSurfaceTemperature.reduce(ee.Reducer.max()).clip(Africa);
+
+// Compute the TCI as the ratio of the difference between the maximum and the current temperature,
+// and the difference between the maximum and the minimum temperature
+var TCI = landSurfaceTemperature.map(function(img) {
+  return LSTmax.subtract(img).divide(LSTmax.subtract(LSTmin)).clip(Africa);
+});
+
+var TCImosaic = TCI.mosaic()
+
+var visualized_range = {min: 0, max: 1,palette:['#fee8c8','#fdbb84','#e34a33']};
+
+// Add the TCI images to the map, using the visualized temperature range
+Map.addLayer(TCI, visualized_range, "TCI");
+
+Export.image.toDrive({
+  image:TCImosaic,
+  description: 'TCI',
+  region: Africa,
+  scale: 5000,
+})
+
+
+var VHI = vci.map(function(image) {
+  return image.multiply(0.5).add(TCImosaic.multiply(0.5)).clip(Africa);
+});
+
+// var VHI = vci.mosaic().multiply(0.5).add(TCI.mosaic().multiply(0.5));
+// Visualize the VCI.
+var vhiVis = {
+  min: 0.0,
+  max: 1.0,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+    '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+    '012E01', '011D01', '011301'
+  ],
+  //palette: ['red', 'green'],
+};
+Map.addLayer(VHI, vhiVis, 'VHI');
+
+Export.image.toDrive({
+  image:VHI.mosaic(),
+  description: 'VHI2001_2020',
+  region: Africa,
+  scale: 5000,
+})
+
+
+
+
+
+
+
+//SMDI                                           Soil Moisture Deficit Index
+
+var fldas = ee.ImageCollection("NASA/FLDAS/NOAH01/C/GL/M/V001")
+
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+
+var layer = dataset.select('SoilMoi00_10cm_tavg');
+
+  
+var annualMean = layer.mean().clip(Africa);
+
+var annualmax = layer.max().clip(Africa);
+
+var annualmin = layer.min().clip(Africa);
+
+//soil moisture deficit for each year in the time period specified in your filter
+var deficit = annualmax.subtract(annualmin);
+
+// mean soil moisture deficit for the entire time period.
+var meanDeficit = deficit.reduce(ee.Reducer.mean());
+
+// Calculate the SMDI for each year in the time period specified in the filter.
+var smdi = deficit.divide(annualmax);
+
+//mean SMDI for the entire time period
+var SMDI = smdi.reduce(ee.Reducer.mean());
+
+var band_viz = {
+  min: 0,
+  max: 0.7,
+  opacity: 1.0,
+  palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"]
+};
+
+
+//Map.addLayer(annualMean, band_viz, 'average');
+//Map.addLayer(annualmin, band_viz, 'min');
+//Map.addLayer(annualmax, band_viz, 'max');
+//Map.addLayer(deficit, band_viz, 'deficit_eachyear');
+//Map.addLayer(meanDeficit, band_viz, 'deficit_entire_period');
+//Map.addLayer(smdi, band_viz, 'smdi_eachyear');
+Map.addLayer(SMDI, band_viz, 'SMDI');
+
+Export.image.toDrive({image: SMDI.clip(Africa) , 
+  description: 'SMDI2001_2020', 
+  region: Africa.geometry(), 
+  scale: 5000});
+
+
+
+
+
+
+//ETDI                                       Evapotranspiration Deficit Index 
+var dataset = ee.ImageCollection('MODIS/NTSG/MOD16A2/105')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var ET = dataset.select('ET');
+var PET = dataset.select('PET')
+
+var annualmeanET = ET.mean().clip(Africa)
+var annualmeanPET = PET.mean().clip(Africa)
+
+var waterStress = annualmeanPET.subtract(annualmeanET).divide(annualmeanPET);
+
+// Calculate median water stress
+var medianWaterStress = waterStress.reduce(ee.Reducer.median());
+
+// Calculate maximum water stress
+var maxWaterStress = waterStress.reduce(ee.Reducer.max());
+
+// Calculate minimum water stress
+var minWaterStress = waterStress.reduce(ee.Reducer.min());
+
+// Calculate the long-term mean water stress
+var longTermMean = waterStress.reduce(ee.Reducer.mean());
+
+// Calculate the water stress anomaly
+var waterStressAnomaly = waterStress.subtract(longTermMean);
+
+// Calculate the percentage water stress anomaly
+var percentageWaterStressAnomaly = waterStressAnomaly.divide(longTermMean).multiply(100);
+
+//compute the evapotranspiration deficit index
+
+var ETDI = percentageWaterStressAnomaly.divide(100).multiply(maxWaterStress.subtract(minWaterStress)).add(minWaterStress);
+
+
+
+var evapotranspirationVis = {
+  min: 0,
+  max: 1,
+  palette:
+      ['a50000', 'ff4f1a', 'f1e342', 'c7ef1f', '05fff3', '1707ff', 'd90bff'],
+};
+
+
+// Map.addLayer(annualmeanET, evapotranspirationVis, 'Evapotranspiration');
+// Map.addLayer(annualmeanPET, evapotranspirationVis, 'PET');
+// Map.addLayer(waterStress , evapotranspirationVis, 'WaterStress');
+// Map.addLayer(percentageWaterStressAnomaly , evapotranspirationVis, 'WaterStressA');
+// Map.addLayer(percentageWaterStressAnomaly , evapotranspirationVis, 'WaterStressA');
+Map.addLayer(ETDI , evapotranspirationVis, 'ETDI');
+
+Export.image.toDrive({image: ETDI,
+description: 'ETDI2001_2020',
+region: Africa,
+scale: 5000,
+})
+
+
+
+
+
+
+//CMI                                          Crop Moisture Index 
+//compute the crop moisture index  
+
+var dataset = ee.ImageCollection('IDAHO_EPSCOR/TERRACLIMATE')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var PET = dataset.select('pet').mean();
+var soilmoisture = dataset.select('soil').mean();
+
+var moisture_deficit = PET.subtract(soilmoisture);
+
+//normalized_moisture_deficit
+var normalized_moisture_deficit = moisture_deficit.divide(PET);
+var CMI = normalized_moisture_deficit
+
+var crop_moisture_index = normalized_moisture_deficit.multiply(100);
+
+
+var VisParams = {
+  min: 0,
+  max: 1,
+  palette: [
+    '1a3678', '2955bc', '5699ff', '8dbae9', 'acd1ff', 'caebff', 'e5f9ff',
+    'fdffb4', 'ffe6a2', 'ffc969', 'ffa12d', 'ff7c1f', 'ca531a', 'ff0000',
+    'ab0000'
+  ],
+};
+
+// Map.addLayer(soilmoisture, VisParams, 'Maximum Temperature');
+// Map.addLayer(moisture_deficit, VisParams, 'moisture_deficit');
+Map.addLayer(CMI.clip(Africa), VisParams , 'CMI');
+
+Export.image.toDrive({image: CMI.clip(Africa),
+  description: 'CMI2001_2020',
+  region: Africa,
+  scale: 5000
+})
+
+
+
+
+
+
+
+
+
+
+//SMADI                                            (SMADI)
+
+//calculate the SMCI
+var dataset=ee.ImageCollection('NASA/FLDAS/NOAH01/C/GL/M/V001')
+              .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var ssm = dataset.select('SoilMoi00_10cm_tavg');
+
+
+var SSM = ssm.reduce(ee.Reducer.mean()).clip(Africa);
+var SSMmax = ssm.reduce(ee.Reducer.max()).clip(Africa);
+var SSMmin = ssm.reduce(ee.Reducer.min()).clip(Africa);
+
+
+ var SMCI = SSMmax.subtract(SSM).divide(SSMmax.subtract(SSMmin)).clip(Africa);
+var band_viz = {
+  min: -1,
+  max: 1,
+  opacity: 1.0,
+  palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"]
+};
+
+
+
+//Map.addLayer(SMCI, band_viz, 'SMCI');
+
+
+// Calculate MTCI
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var dataset = ee.ImageCollection('MODIS/006/MOD11A2')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var landSurfaceTemperature = dataset.select('LST_Day_1km');
+
+var LST = landSurfaceTemperature.reduce(ee.Reducer.mean()).clip(Africa);
+var LSTmin = landSurfaceTemperature.reduce(ee.Reducer.min()).clip(Africa);
+var LSTmax = landSurfaceTemperature.reduce(ee.Reducer.max()).clip(Africa);
+
+
+var MTCI = LST.subtract(LSTmin).divide(LSTmax.subtract(LSTmin));
+
+//Map.addLayer(MTCI, band_viz,'MTCI');
+
+
+//calculate VCI and VHI
+
+
+var dataset = ee.ImageCollection('MODIS/061/MOD13A2')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var ndvi = dataset.select('NDVI');
+
+
+
+//var ndvimean = ndvi.reduce(ee.Reducer.mean())
+// // Shift the time of an image by 8 days
+// var imageShifted = ndvimean.updateMask(ndvimean).set('system:time_start',
+// ee.Date(ndvimean.get('system:time_start')).advance(8, 'day'));
+
+
+// Consider a time lag of 8 days for an image collection
+var collectionLagged = ndvi.map(function(image) {
+  return image.updateMask(image).set('system:time_start', 
+  ee.Date(image.get('system:time_start')).advance(8, 'day'));
+});
+
+var ndviMin = collectionLagged.reduce(ee.Reducer.min());
+var ndviMax = collectionLagged.reduce(ee.Reducer.max());
+
+// Compute the VCI for each image in the collection.
+var vci = collectionLagged.map(function(image) {
+  return image.subtract(ndviMin).divide(ndviMax.subtract(ndviMin)).clip(Africa);
+});
+
+// Visualize the VCI.
+var vciVis = {
+  min: 0.0,
+  max: 1.0,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+    '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+    '012E01', '011D01', '011301'
+  ],
+};
+//Map.addLayer(vci, vciVis, 'VCI');
+
+
+// Export.image.toDrive({
+//   image:vci.mosaic(),
+//   description: 'vcimosaic',
+//   region: Africa,
+//   scale: 5000,
+// })
+
+
+//TCI
+var TCI = landSurfaceTemperature.map(function(img) {
+  return LSTmax.subtract(img).divide(LSTmax.subtract(LSTmin)).clip(Africa);
+});
+
+
+//var TCImean = TCI.reduce(ee.Reducer.mean())
+var TCImosaic = TCI.mosaic()
+var visualized_range = {min: 0, max: 1,palette:['#fee8c8','#fdbb84','#e34a33']};
+
+// Add the TCI images to the map, using the visualized temperature range
+//Map.addLayer(TCI, visualized_range, "TCI");
+
+// Export.image.toDrive({
+//   image:TCI.mosaic(),
+//   description: 'TCImean',
+//   region: Africa,
+//   scale: 5000,
+// })
+
+
+// var VHI = vci.map(function(image) {
+//   return image.multiply(0.5).add(TCImosaic.multiply(0.5)).clip(Africa);
+// });
+
+
+// // Visualize the VHI.
+// var vhiVis = {
+//   min: 0.0,
+//   max: 1.0,
+//   palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+//     '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+//     '012E01', '011D01', '011301'
+//   ],
+  //palette: ['red', 'green'],
+// };
+//Map.addLayer(VHI, vhiVis, 'VHI2');
+
+// Export.image.toDrive({
+//   image:VHI,
+//   description: 'VHI',
+//   region: Africa,
+//   scale: 5000,
+// })
+
+
+
+// Calculate SMADI using the provided formula. try with VHI
+var smadi = vci.map(function(image) {
+  return SMCI.multiply(MTCI.divide(image)).clip(Africa);
+});
+
+// Normalize the SMADI values between 0 and 1
+var SMADI_normalized = smadi.map(function(image) {
+  return image.subtract(smadi.min()).divide(smadi.max().subtract(smadi.min())).clip(Africa);
+});
+
+var SMADImean = SMADI_normalized.mean();
+var SMADImedian = SMADI_normalized.median();
+var SMADI = SMADI_normalized.mosaic();
+
+// Visualize the normalized SMADI
+var smadiVis = {
+  min: 0.0,
+  max: 1.0,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+    '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+    '012E01', '011D01', '011301'
+  ],
+};
+
+Map.addLayer(SMADI, smadiVis, 'SMADI');
+
+Export.image.toDrive({
+  image:SMADI,
+  description: 'SMADI2001_2020',
+  region: Africa,
+  scale: 5000,
+})
+
+
+
+
+
+
+
+
+//NMDI                                            Normalized Multiband Drought Index
+var dataset = ee.ImageCollection('MODIS/061/MOD09A1')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+
+// Calculate the NMDI for each image in the collection
+var nmdi = dataset.map(function(image) {
+  var nmdi = (image.select('sur_refl_b02').subtract(image.select('sur_refl_b06').subtract(image.select('sur_refl_b07'))))
+  .divide(image.select('sur_refl_b02').add(image.select('sur_refl_b06').subtract(image.select('sur_refl_b07'))));
+  return nmdi.clip(Africa);
+});
+
+var nmdimosaic = nmdi.mosaic()
+var NMDI = nmdimosaic  
+
+// Display the NMDI image on the map (normalized multi‐band drought index)
+
+Map.addLayer(NMDI, {min: 0, max: 1,palette:['green','yellow','red']}, 'NMDI');
+
+
+Export.image.toDrive({image: NMDI,
+description: 'NMDI2001_2020',
+region: Africa,
+scale: 5000
+})
+
+
+
+
+
+
+
+
+
+// SDCI                                                Scaled Drought Condition Index 
+//TCI
+var Africa = ee.FeatureCollection("users/fredlink9/Africa")
+var dataset = ee.ImageCollection('MODIS/006/MOD11A2')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var landSurfaceTemperature = dataset.select('LST_Day_1km');
+
+var LST = landSurfaceTemperature.reduce(ee.Reducer.mean()).clip(Africa);
+var LSTmin = landSurfaceTemperature.reduce(ee.Reducer.min()).clip(Africa);
+var LSTmax = landSurfaceTemperature.reduce(ee.Reducer.max()).clip(Africa);
+
+// Compute the TCI as the ratio of the difference between the maximum and the current temperature,
+// and the difference between the maximum and the minimum temperature
+var TCI = landSurfaceTemperature.map(function(img) {
+  return LSTmax.subtract(img).divide(LSTmax.subtract(LSTmin)).clip(Africa);
+});
+// var visualized_range = {min: 0, max: 1,palette:['#fee8c8','#fdbb84','#e34a33']};
+
+// Add the TCI images to the map, using the visualized temperature range
+// Map.addLayer(TCI, visualized_range, "TCI1");
+
+// Export.image.toDrive({
+//   image:TCI.mosaic(),
+//   description: 'TCI',
+//   region: Africa,
+//   scale: 5000,
+// })
+
+
+//PCI
+var dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_MONTHLY_V06')
+    .filterDate('2001-01-01', '2020-01-01');
+
+// Select the max precipitation and mask out low precipitation values.
+var ppt = dataset.select('precipitation');
+var pptmin = ppt.reduce(ee.Reducer.min());
+var pptmax = ppt.reduce(ee.Reducer.max());
+var pptmosaic = dataset.select('precipitation').mosaic();
+
+
+var PCI = pptmosaic.subtract(pptmin).divide(pptmax.subtract(pptmin)).clip(Africa);
+
+// var palette = [ 
+//   '000096','0064ff', '00b4ff', '33db80', '9beb4a',
+//   'ffeb00', 'ffb300', 'ff6400', 'eb1e00', 'af0000'
+// ];
+// var precipitationVis = {min: 0.0, max: 1.5, palette: palette};
+
+
+// Map.addLayer(PCI, precipitationVis, 'PCI');
+
+
+//VCI
+var dataset = ee.ImageCollection('MODIS/061/MOD13A2')
+                  .filter(ee.Filter.date('2001-01-01', '2020-12-31'));
+var ndvi = dataset.select('NDVI');
+// Compute the minimum and maximum NDVI values for the collection.
+var ndviMin = ndvi.min();
+var ndviMax = ndvi.max();
+
+// Compute the VCI for each image in the collection.
+var VCI = ndvi.map(function(image) {
+  return image.subtract(ndviMin).divide(ndviMax.subtract(ndviMin)).clip(Africa);
+});
+// // Visualize the VCI.
+// var vciVis = {
+//   min: 0.0,
+//   max: 1.0,
+//   palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+//     '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+//     '012E01', '011D01', '011301'
+//   ],
+// };
+// Map.addLayer(VCI, vciVis, 'VCI');
+
+
+// Compute SDCI
+var SDCI = TCI.mosaic().multiply(0.25).add(PCI.multiply(0.50)).add(VCI.mosaic().multiply(0.25)).clip(Africa);
+
+// Visualize the SDCI
+var scciVis = {
+  min: 0.0,
+  max: 1.0,
+  palette: ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
+    '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
+    '012E01', '011D01', '011301'
+  ],
+};
+Map.addLayer(SDCI, scciVis, 'SDCI');
+
+Export.image.toDrive({image: SDCI,
+  description: 'SDCI2001_2020',
+  region: Africa,
+  scale:5000
+})
+
+
+
+
+
+//elevation and slope
+var dataset = ee.Image('CGIAR/SRTM90_V4').clip(Africa);
+var elevation = dataset.select('elevation');
+var slope = ee.Terrain.slope(elevation);
+
+Map.addLayer(elevation,{max:1400, min:0, palette:['red','white','green']}, 'elevation')
+Map.addLayer(slope,{max:1 ,min:0, palette:['red','white','green']}, 'slope')
+
+//precipitation
+var dataset= chirps.filter(ee.Filter.date('2001-01-01', '2021-12-31'));
+var layer = dataset.select('precipitation');
+//anual mean rainfall
+var precipitation = layer.mean().clip(Africa).multiply(365);
+
+var band_viz = {
+  min: 0.0,  max: 2000,  opacity: 1.0,  palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"],};
+//annual mean precipitation as precipitation'
+Map.addLayer(precipitation, band_viz, 'precipitation');
+
+
+Export.image.toDrive({image: precipitation.clip(Africa) , 
+description: 'precipitation', 
+  region: Africa.geometry(), 
+  scale: 5000});
+
+
+
+
+
+//Evapotranspiration
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2021-12-31'));
+
+var layer = dataset.select('Evap_tavg');
+
+  //annual mean
+var evapotranspiration = layer.mean().clip(Africa).multiply(86400).multiply(365);
+
+var band_viz = {  min: 0.0,  max: 1500,  opacity: 1.0,  
+palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"]};
+//Annual mean ET
+Map.addLayer(evapotranspiration, band_viz, 'evapotranspiration');
+
+Export.image.toDrive({image: annualMean.clip(Africa) , 
+  description: 'evapotranspiration', 
+  region: Africa.geometry(), 
+  scale: 5000});
+
+
+
+
+
+//Soil Moisture
+var dataset= fldas.filter(ee.Filter.date('2001-01-01', '2021-12-31'));
+var layer = dataset.select('SoilMoi00_10cm_tavg');
+//annualMean
+var soilmoisture = layer.mean().clip(Africa);
+
+var band_viz = {
+  min: 0.0,
+  max: 0.5,
+  opacity: 1.0,
+  palette: ["black", "blue", "purple", "cyan", "green", "yellow", "red"]
+};
+
+Map.addLayer(soilmoisture, band_viz, 'soil moisture');
+
+Export.image.toDrive({image: soilmoisture , 
+  description: 'soil moisture', 
+  region: Africa.geometry(), 
+  scale: 5000});
+
+
+
+
+
+
+
+
+
+// Combine and normalize all the different bands to form one composite image
+//var combined = ee.Image([NDDI, VHI, SMDI, ETDI, CMI, SMADI,NMDI, SDCI, elevation, slope, precipitation, evapotranspiration, soilmoisture]).normalizedDifference();
+
+var composite = VHI.map(function(image) {
+  return image.addBands(NDDI).addBands(SMDI).addBands(ETDI).addBands(CMI).addBands(SMADI)
+  .addBands(NMDI).addBands(SDCI).addBands(elevation).addBands(slope).addBands(precipitation)
+  .addBands(evapotranspiration).addBands(soilmoisture).clip(Africa);
+});
+
+
+
+Map.addLayer(composite,{},'composite' )
+
+
+//var combined = ee.Image([composite]).normalizedDifference()
+
+Export.image.toDrive({image: composite , 
+  description: 'composite', 
+  region: Africa, 
+  scale: 5000
+  });
+  
+
+
+
+
+
+
+
+// Country Boundaries 
+var dataset = ee.FeatureCollection("FAO/GAUL/2015/level0");
+
+// Define the style parameters for the dataset
+var styleParams = {
+  fillColor: '#FFFFFF10',
+  color: 'black',
+  width: 2.0
+};
+
+// Style the dataset
+dataset = dataset.style(styleParams);
+
+// Clip the dataset to the region of Africa
+var clipped = dataset.clip(Africa);
+
+// Display the clipped dataset
+Map.addLayer(clipped, {}, 'Country Boundaries');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
